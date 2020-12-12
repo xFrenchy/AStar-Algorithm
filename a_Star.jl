@@ -71,7 +71,8 @@ function MoveThroughGrid(current_position::Node, length::Int, width::Int)
         # We have to stay in bounds, that means our indices cannot be < 1 and cannot be > length
         for directions in [(-1,0), (1,0), (0,-1), (0,1)]
                 # first index goes up and down, second index goes left and right
-                new_position = current_position
+                new_position = (current_position[1] + directions[1], current_position[2] + directions[2])
+                if new_position[1] < 1 || new_position[1] > length
         end
         return nothing
 end
