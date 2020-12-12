@@ -1,4 +1,4 @@
-struct Node
+mutable struct Node
         # Every single entry in the 2D array will be considered a node
 
         # This is the node of our previous position before reaching our current position
@@ -33,7 +33,6 @@ function A_Star(grid::Array{Int}, startCord::Tuple{Int, Int}, endCord::Tuple{Int
         open_list = Array{Node}(undef, 0)
         closed_list = Array{Node}(undef, 0)
         starting_node = Node(startCord)
-        ending_node = Node(endCord)
         dimension = size(grid)
         length = dimension[1]
         width = dimension[2]
@@ -46,11 +45,11 @@ function A_Star(grid::Array{Int}, startCord::Tuple{Int, Int}, endCord::Tuple{Int
                 current_node = popfirst!(open_list)
                 push!(closed_list, current_node)
 
-                # Let's check if our current node is the end node
-                if current_node.position == ending_node.position
+                # Let's check if our current node has reached the goal
+                if current_node.position == endCord
                         path = Array{Node}(undef, 0)
-                        while current_node.parent != nothing
-                                append!(path, current_node)
+                        while current_node != nothing
+                                push!(path, current_node)
                                 current_node = current_node.parent
                         end # end of while backtracking through path
                         # Path is currently from end->start, let's reverse that
@@ -59,23 +58,72 @@ function A_Star(grid::Array{Int}, startCord::Tuple{Int, Int}, endCord::Tuple{Int
                 end # end of if current node is the end goal
 
                 # Let's explore by trying to get in all 4 directions (Up/Down/Left/Right)
-                new_nodes = Array{Node}(undef, 0)
-                new_nodes = MoveThroughGrid(current_node.position, length, width)
+                new_node = Array{Node}(undef, 0)
+                new_node = MoveThroughGrid(current_node, length, width, endCord)
 
-
+                for node in new_node
+                        # check if this node has already been visited before
+                        if !(node in closed_list)
+                                # check to see if we should add this node to the open list
+                                if CheckToAdd(node, open_list)
+                                        push!(open_list, node)
+                                end
+                        end # end of if node is not in closed_list
+                end # end of iterating through nodes in the new valid nodes generated
         end # end of while open_list is not empty
         return nothing
 end # end of A_Star function
 
-function MoveThroughGrid(current_position::Node, length::Int, width::Int)
+
+function MoveThroughGrid(current_node::Node, length::Int, width::Int, endCord::Tuple{Int, Int})
+        """Function that generates new nodes by applying directions to our current position
+        This function also calculates the heuristics of these new generated nodes"""
         # We have to stay in bounds, that means our indices cannot be < 1 and cannot be > length
+        valid_nodes = Array{Node}(undef, 0)
         for directions in [(-1,0), (1,0), (0,-1), (0,1)]
                 # first index goes up and down, second index goes left and right
-                new_position = (current_position[1] + directions[1], current_position[2] + directions[2])
-                if new_position[1] < 1 || new_position[1] > length
+                new_position = (current_node.position[1] + directions[1], current_node.position[2] + directions[2])
+                if new_position[1] >= 1 && new_position[1] <= length && new_position[2] >= 1 && new_position[2] <= width
+                        temp_node = Node(new_position)
+                        temp_node.g = current_node.g + 1
+                        temp_node.h = abs(new_position[1] - endCord[1])*2 + abs(new_position[2] - endCord[2])*2
+                        temp_node.f = temp_node.g + temp_node.h
+                        temp_node.parent = current_node
+                        push!(valid_nodes, temp_node)
+                end
         end
-        return nothing
+        return valid_nodes
 end
+
+
+function CheckToAdd(current_node::Node, open::Array{Node})
+        """Function checks to see if this current node already exists in the open list
+        and checks to see if it's a less effecient path than what's currently in the open list
+        If the node is less effecient, it returns false, otherwise it returns true"""
+
+        for node in open
+                if current_node.position == node.position && current_node.f >= node.f
+                        return false
+                end
+        end
+        return true
+end
+
+
+function displayPath(path::Array{Node}, length::Int)
+        for i = 1:length
+                if i == length
+                        print(path[i].position)
+                else
+                        print(path[i].position, "->")
+                end
+                if i % 5 == 0
+                        println()
+                end
+        end
+        println()
+end
+
 
 function main()
         println(raw"""
@@ -97,13 +145,18 @@ function main()
         #       -Place the ending goal somewhere else than just bottom right of the grid
         #       -Make the grid size dependent on the user input, or random
         traversalGrid = zeros(Int, 5, 7)
-        println("Here is your current grid that A* will:")
+        traversalGrid[5,7] = 1
+        println("Here is your current grid that A* will go through:")
         # TODO:
         #       -Display clearly where the starting goal is and where the ending goal is
         display(traversalGrid)
 
         # Applying A* algorithm to find the shortest path
-        path = A_Star(traversalGrid, (1,1), (5,5))
+        path = A_Star(traversalGrid, (1,1), (5,7))
+        length = size(path)
+        displayPath(path, length[1])
+        # we subtract 1 from the length to display the amount of edges instead of amount of nodes
+        println("Length of path: ",length[1]-1)
 end
 
 main()
