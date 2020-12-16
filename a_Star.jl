@@ -1,4 +1,6 @@
-const blocking_terrain = 1
+using BenchmarkTools
+
+const blocking_terrain = 'x'
 
 mutable struct Node
         # Every single entry in the 2D array will be considered a node
@@ -30,7 +32,7 @@ end
 # Overriding Base isless so that it knows how to compare Node objects. Needed for sort!()
 Base.isless(a::Node, b::Node) = isless(a.f, b.f)
 
-function A_Star(grid::Array{Int}, startCord::Tuple{Int, Int}, endCord::Tuple{Int, Int})
+function A_Star(grid::Array{Char}, startCord::Tuple{Int, Int}, endCord::Tuple{Int, Int})
         """Function that traverses the grid using the A* algorithm and returns the
         path to the end goal, if such a path exists. Otherwise it returns nothing"""
 
@@ -83,7 +85,7 @@ function A_Star(grid::Array{Int}, startCord::Tuple{Int, Int}, endCord::Tuple{Int
 end # end of A_Star function
 
 
-function MoveThroughGrid(grid::Array{Int}, current_node::Node, length::Int, width::Int, endCord::Tuple{Int, Int})
+function MoveThroughGrid(grid::Array{Char}, current_node::Node, length::Int, width::Int, endCord::Tuple{Int, Int})
         """Function that generates new nodes by applying directions to our current position
         This function also calculates the heuristics of these new generated nodes"""
         # We have to stay in bounds, that means our indices cannot be < 1 and cannot be > length
@@ -134,7 +136,8 @@ function CheckToAddClose(current_node::Node, close::Array{Node})
 end
 
 
-function displayPath(path::Array{Node}, length::Int)
+function displayPath(grid::Array{Char}, path::Array{Node}, length::Int)
+        println()
         for i = 1:length
                 if i == length
                         print(path[i].position)
@@ -144,8 +147,31 @@ function displayPath(path::Array{Node}, length::Int)
                 if i % 5 == 0
                         println()
                 end
+                grid[path[i].position[1], path[i].position[2]] = 'o'
         end
         println()
+        display(grid)
+end
+
+
+function GenerateGrid(length::Int, width::Int, endCord::Tuple{Int, Int})
+        """Function that randomly generates a grid with random obstables
+        in it with the dimensions passed to it and returns grid"""
+        grid = Array{Char}(undef, length, width)
+        for i = 1:length
+                for j = 1:width
+                        # we don't want to put blocking terrain at the eng goal or beginning lol
+                        if (i == endCord[1] && j == endCord[2]) || (i == 1 && j == 1)
+                                grid[i,j] = '.'
+                        # Let's give it a 20% chance of placing a blocking terrain at this spot
+                        elseif rand((1:5)) == 1
+                                grid[i,j] = blocking_terrain
+                        else
+                                grid[i,j] = '.'
+                        end
+                end
+        end
+        return grid
 end
 
 
@@ -164,26 +190,31 @@ function main()
         """)
 
         # TODO:
-        #       -Place obstacles in this grid to alter the pathing
-        #       -Randomly generate these alters
         #       -Place the ending goal somewhere else than just bottom right of the grid
-        #       -Make the grid size dependent on the user input, or random
-        traversalGrid = zeros(Int, 5, 7)
-        traversalGrid[5,6] = blocking_terrain
-        traversalGrid[4,6] = blocking_terrain
-        traversalGrid[3,6] = blocking_terrain
-        traversalGrid[1,6] = blocking_terrain
+        println()
+        println("Enter the length of this grid:")
+        x = parse(Int, readline())
+        println("Enter the width of this grid:")
+        y = parse(Int, readline())
+        traversalGrid = Array{Char}(undef, 0)
+        traversalGrid = GenerateGrid(x,y,(x,y))
         println("Here is your current grid that A* will go through:")
-        # TODO:
-        #       -Display clearly where the starting goal is and where the ending goal is
         display(traversalGrid)
 
         # Applying A* algorithm to find the shortest path
-        path = A_Star(traversalGrid, (1,1), (5,7))
-        length = size(path)
-        displayPath(path, length[1])
-        # we subtract 1 from the length to display the amount of edges instead of amount of nodes
-        println("Length of path: ",length[1]-1)
+        path = A_Star(traversalGrid, (1,1), (x,y))
+        try
+                length = size(path)
+                # TODO:
+                #       -Display clearly the path and the nodes that have been evalated (GUI)
+                displayPath(traversalGrid, path, length[1])
+                # we subtract 1 from the length to display the amount of edges instead of amount of nodes
+                println("Length of path: ",length[1]-1)
+        catch e
+                println("This grid has no path to reach the endgoal!")
+        end
+        @btime A_Star($traversalGrid, (1,1), ($x,$y))
+        println("Woo look at that speed")
 end
 #Juno.@enter main()     # <--- Enter debugger
-@time main()
+main()
